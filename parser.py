@@ -19,13 +19,13 @@ class PostParser(object):
             tmp[key] = data_dict[key]
         return tmp
     
-    def parse_post(self, html):
+    def parse_post(self, browser):
         fields = [
             'post_id', 'post_title', 'stockbar_code', 'user_nickname', 
             'user_id', 'post_click_count', 'post_forward_count', 'post_comment_count', 
             'post_publish_time', 'post_last_time', 'post_type', 'post_source_id', 
         ]
-        dic_list_ = json.loads(re.findall(r"article_list=(.*?);", html.page_source)[0])['re']
+        dic_list_ = json.loads(browser.execute_script("return JSON.stringify(article_list)"))['re']
         crawl_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         dic_list = []
         for data_dict in dic_list_:

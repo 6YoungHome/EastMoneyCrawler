@@ -4,6 +4,7 @@ import time
 import random
 import pandas as pd
 import os
+import datetime
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
@@ -11,6 +12,7 @@ from selenium.common.exceptions import TimeoutException
 from mongodb import MongoAPI
 from parser import PostParser # type: ignore
 from parser import CommentParser # type: ignore
+
 
 
 
@@ -63,7 +65,7 @@ class PostCrawler(Crawler):
         page_element = self.browser.find_element(By.CSS_SELECTOR, 'ul.paging > li:nth-child(7) > a > span')
         return int(page_element.text)
 
-    def crawl_post_info(self, page1: int, page2: int=0):
+    def crawl_by_page(self, page1: int, page2: int=0):
         # start = time.time()
         self.create_webdriver()
         # print(f"create driver:{time.time() - start:.2f}s ")
@@ -84,7 +86,7 @@ class PostCrawler(Crawler):
             url = f'http://guba.eastmoney.com/list,{self.symbol},f_{current_page}.html'
             try:
                 self.browser.get(url) 
-                dic_list.extend(parser.parse_post(html=self.browser)) 
+                dic_list.extend(parser.parse_post(browser=self.browser)) 
                 print(f'{self.symbol}: 已经成功爬取第 {current_page} 页帖子基本信息，'
                       f'进度 {(current_page - page1 + 1)*100/(stop_page - page1 + 1):.2f}%')
                 current_page += 1
@@ -111,7 +113,76 @@ class PostCrawler(Crawler):
         df.to_parquet(f"post_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
         print(f'成功爬取 {self.symbol}股吧共 {stop_page - page1 + 1} 页帖子，总计 {row_count} 条，花费 {time_cost/60:.2f} 分钟')
         print(f'帖子的时间范围从 {start_date} 到 {end_date}')
+    
+    def crawl_oneday_post(self, aim_date=None, date_diff=None):
+        """获取某一日的post数据
 
+        Args:
+            day_diff (_type_): _description_
+        """
+        if aim_date:
+            if (datetime.datetime.today() - datetime.datetime.strptime(aim_date, "%Y-%m-%d")).days > 5:
+                print(f"目标日期{aim_date}太久远！")
+                return 
+            elif (datetime.datetime.today() - datetime.datetime.strptime(aim_date, "%Y-%m-%d")).days < 0:
+                print(f"目标日期{aim_date}是未来日期")
+        elif date_diff:
+            if date_diff > 5:
+                print(f"目标日期太久远！")
+                return 
+            elif date_diff < 0:
+                print(f"目标日期是未来日期")
+                return 
+            else:
+                aim_date = (datetime.datetime.today() - datetime.timedelta(days=date_diff)).strftime("%Y-%m-%d")
+        else:
+            aim_date = datetime.datetime.today().strftime("%Y-%m-%d")
+
+        self.create_webdriver()
+        max_page = self.get_page_num() 
+        current_page = 1
+        stop_page = max_page
+
+        parser = PostParser()
+
+        dic_list = []
+        aim_date_small_count = 0
+        while current_page <= stop_page:  # use 'while' instead of 'for' is crucial for exception handling
+            time.sleep(abs(random.normalvariate(0, 0.01)))  # random sleep time
+            # start = time.time()
+            url = f'http://guba.eastmoney.com/list,{self.symbol},f_{current_page}.html'
+            try:
+                self.browser.get(url)
+                dic_list_ = parser.parse_post(browser=self.browser)
+                for dic in dic_list_:
+                    if dic['publish_date'] == aim_date:
+                        dic_list.append(dic)
+                        aim_date_small_count = 0
+                    elif dic['publish_date'] < aim_date:
+                        aim_date_small_count += 1
+                    if aim_date_small_count == 10:
+                        current_page = stop_page + 100
+                        break
+                current_page += 1
+                
+            except Exception as e:
+                print(f'{self.symbol}: 第 {current_page} 页出现了错误 {e}')
+                time.sleep(0.01)
+                self.browser.refresh()
+                self.browser.delete_all_cookies()
+                self.browser.quit()  # if we don't restart the webdriver, our crawler will be restricted access speed
+                self.create_webdriver()  # restart it again!
+        end = time.time()
+        time_cost = end - self.start
+        row_count = len(dic_list)
+        self.browser.quit()
+        df = pd.DataFrame(dic_list)
+        if not df.empty:
+            df['symbol'] = self.format_symbol
+            df.to_parquet(f"post_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
+            print(f'成功爬取 {self.symbol}股吧{aim_date}帖子，共 {row_count} 条数据，花费 {time_cost/60:.2f} 分钟')
+        else:
+            print(f'成功爬取 {self.symbol}股吧{aim_date}帖子，共 0 条数据，花费 {time_cost/60:.2f} 分钟')
 class CommentCrawler(Crawler):
 
     def __init__(self, stock_symbol: str):

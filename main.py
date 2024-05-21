@@ -1,76 +1,138 @@
 from crawler import PostCrawler
 from crawler import CommentCrawler
 import threading
+import multiprocessing
+from multiprocessing import Queue, Lock
 import time
+import datetime
 
 
-def post_thread(stock_symbol, start_page, end_page):  # stock_symbol为股票的代码，page为想要爬取的页面范围
-    post_crawler = PostCrawler(stock_symbol)
-    post_crawler.crawl_post_info(start_page, end_page)
-
-
-def comment_thread_date(stock_symbol, start_date, end_date):  # stock_symbol为股票的代码，date为想要爬取的日期范围
-    comment_crawler = CommentCrawler(stock_symbol)
-    comment_crawler.find_by_date(start_date, end_date)
-    comment_crawler.crawl_comment_info()
-
-
-def comment_thread_id(stock_symbol, start_id, end_id):  # stock_symbol为股票的代码，id是通过post_id来确定爬取，适合断联续爬
-    comment_crawler = CommentCrawler(stock_symbol)
-    comment_crawler.find_by_id(start_id, end_id)
-    comment_crawler.crawl_comment_info()
-
-
-if __name__ == "__main__":
-    # with open('stock_pool.txt') as f:
-    #     stock_pool = f.readlines()
-    # thread_pool = []
-    # for stock_code in stock_pool[0: 5]:
-    #     stock_code = stock_code.strip().split(".")[0]
-    #     thread_pool.append(threading.Thread(target=post_thread, args=(stock_code, 1, 0)))
-
-    # for t in thread_pool:
-    #     t.start()
+def task_split_generate(stock_pool_path):
+    q = Queue()
+    with open(stock_pool_path) as f:
+        stock_pool = f.readlines()
         
-    # for t in thread_pool:
-    #     t.join()
+    for stock_code in stock_pool:
+        stock_code = stock_code.strip().split(".")[0]
+        q.put(stock_code)
     
-    # print("All tasks success!!!")
-    # 600392: 已经成功爬取第 1238 页帖子基本信息，进度 48.49%
+    return q
+
+
+def post_thread_update(thread_num, stock_code_quene, process_name, log_path, lock):
+    def post_thread_yesterday(stock_symbol):
+        post_crawler = PostCrawler(stock_symbol)
+        post_crawler.crawl_oneday_post(date_diff=1)
+    
+    count = 1
+    while True:
+        stock_count = 0
+        thread_pool = []
+        start = time.time()
+        for i in range(thread_num):
+            if not stock_code_quene.empty():
+                stock_code = stock_code_quene.get()
+                stock_count += 1
+            elif thread_pool == []:
+                return 
+            else:
+                break 
+            thread_pool.append(threading.Thread(target=post_thread_yesterday, args=(stock_code,)))
+
+        for t in thread_pool:
+            t.start()
+            
+        for t in thread_pool:
+            t.join()
+        lock.acquire()
+        with open(f"{log_path}update_log_{datetime.datetime.now().strftime('%Y-%m-%d')}.txt", "a") as f:
+            f.writelines([f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} \t Tasks {count} of {process_name} success!!!, 耗时{round(time.time()-start, 2)}s, 获取 {stock_count} 只股票\n"])
+        count += 1
+        lock.release()
+
+
+def post_thread_download(thread_num, stock_code_quene, process_name, log_path, lock):
+    def post_thread_all(stock_symbol):
+        post_crawler = PostCrawler(stock_symbol)
+        post_crawler.crawl_by_page(1, 0)
+    
+    count = 1
+    while True:
+        stock_count = 0
+        thread_pool = []
+        start = time.time()
+        for i in range(thread_num):
+            if not stock_code_quene.empty():
+                stock_code = stock_code_quene.get()
+                stock_count += 1
+            elif thread_pool == []:
+                return 
+            else:
+                break 
+            thread_pool.append(threading.Thread(target=post_thread_all, args=(stock_code,)))
+
+        for t in thread_pool:
+            t.start()
+            
+        for t in thread_pool:
+            t.join()
+        
+        lock.acquire()
+        with open(f"{log_path}download_log_{datetime.datetime.now().strftime('%Y-%m-%d')}.txt", "a") as f:
+            f.writelines([f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} \t Tasks {count} of {process_name} success!!!, 耗时{round(time.time()-start, 2)}s, 获取 {stock_count} 只股票\n"])
+        count += 1
+        lock.release()
+        
+        
+if __name__ == "__main__":
+    # 全量股票更新程序
+    process_num = 3
+    thread_num = 10
+    stock_pool_path = 'stock_pool.txt'
+    log_path = "./log/"
+    
+    stock_code_quene = task_split_generate(stock_pool_path)
+    lock = Lock()
+    
+    process_pool = []
+    start = time.time()
+    for i in range(process_num):
+        process_pool.append(
+            multiprocessing.Process(
+                target=post_thread_download, 
+                args=(thread_num, stock_code_quene, f"Process-{i+1}", log_path, lock)
+            )
+        )
+
+    for p in process_pool:
+        p.start()
+        
+    for p in process_pool:
+        p.join()
+        
+    # # “昨日”更新程序
+    # process_num = 2
+    # thread_num = 30
+    # stock_pool_path = 'stock_pool.txt'
+    # log_path = "./log/"
+    
+    # stock_code_quene = task_split_generate(stock_pool_path)
+    # lock = Lock()
+    
+    # process_pool = []
     # start = time.time()
-    # post_crawler = PostCrawler("000001")
-    # post_crawler.crawl_post_info(1, 5)
-    
-    post_crawler = PostCrawler("600519")
-    post_crawler.crawl_post_info(1, 5)
-    
-    # post_crawler.create_webdriver()
-    # print(time.time()-start)
-    # comment_crawler = CommentCrawler('600519')
-    # comment_crawler.find_by_date()
-    # comment_crawler.crawl_comment_info()
-    
-    # comment_crawler = CommentCrawler('000001')
-    # comment_crawler.find_by_date()
-    # comment_crawler.crawl_comment_info()
-    
-    # # 爬取发帖信息
-    
-    # thread1 = threading.Thread(target=post_thread, args=('000333', 1, 500))  # 设置想要爬取的股票代码，开始与终止页数
-    # thread2 = threading.Thread(target=post_thread, args=('000729', 1, 500))  # 可同时进行多个线程
+    # for i in range(process_num):
+    #     process_pool.append(
+    #         multiprocessing.Process(
+    #             target=post_thread_update, 
+    #             args=(thread_num, stock_code_quene, f"Process-{i+1}", log_path, lock)
+    #         )
+    #     )
 
-    # # 爬取评论信息，注意需先爬取发帖信息储存到数据库里后才可以爬取评论信息（因为需要用到第一步中的url）
-    # # thread1 = threading.Thread(target=comment_thread_date, args=('000333', '2020-01-01', '2023-12-31'))
-    # # thread2 = threading.Thread(target=comment_thread_date, args=('000729', '2020-01-01', '2023-12-31'))
-
-    # # 中断之后重新通过_id接着爬取
-    # # thread1 = threading.Thread(target=comment_thread_id, args=('000651', 384942, 411959))
-    # # thread2 = threading.Thread(target=comment_thread_id, args=('000651', 62929, 321047))
-
-    # thread1.start()
-    # thread2.start()
-
-    # thread1.join()
-    # thread2.join()
-
-    # print(f"you have fetched data successfully, congratulations!")
+    # for p in process_pool:
+    #     p.start()
+        
+    # for p in process_pool:
+    #     p.join()
+    
+    
