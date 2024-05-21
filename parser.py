@@ -25,7 +25,9 @@ class PostParser(object):
             'user_id', 'post_click_count', 'post_forward_count', 'post_comment_count', 
             'post_publish_time', 'post_last_time', 'post_type', 'post_source_id', 
         ]
-        dic_list_ = json.loads(browser.execute_script("return JSON.stringify(article_list)"))['re']
+        tmp_ = json.loads(browser.execute_script("return JSON.stringify(article_list)"))
+        dic_list_ = tmp_['re']
+        bar_code = tmp_['bar_code']
         crawl_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         dic_list = []
         for data_dict in dic_list_:
@@ -47,7 +49,7 @@ class PostParser(object):
             else:
                 data_dict['post_url'] = f"https://guba.eastmoney.com/news,cfhpl,{data_dict['post_id']}.html"
             dic_list.append(data_dict)
-        return dic_list
+        return dic_list, bar_code
         
     def __parse_post(self, html):
         ## 不用了

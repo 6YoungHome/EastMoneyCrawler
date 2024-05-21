@@ -85,8 +85,14 @@ class PostCrawler(Crawler):
             # start = time.time()
             url = f'http://guba.eastmoney.com/list,{self.symbol},f_{current_page}.html'
             try:
-                self.browser.get(url) 
-                dic_list.extend(parser.parse_post(browser=self.browser)) 
+                self.browser.get(url)
+                parser_dict_list, bar_code = parser.parse_post(browser=self.browser)
+                if bar_code != self.symbol:
+                    with open("./error.txt") as f:
+                        f.write(f"爬取 {self.symbol} 时, 进入了错误的地点 {bar_code}, 疑似IP被封禁!!!\n")
+                        f.writelines([str(i)+"\n" for i in parser_dict_list])
+                    os._exit(1)
+                dic_list.extend(parser_dict_list) 
                 print(f'{self.symbol}: 已经成功爬取第 {current_page} 页帖子基本信息，'
                       f'进度 {(current_page - page1 + 1)*100/(stop_page - page1 + 1):.2f}%')
                 current_page += 1
