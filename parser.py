@@ -110,6 +110,17 @@ class PostParser(object):
             driver.quit()
         else:
             self.year = datetime.now().year
+            
+    def get_post_text(self, browser):
+        try:
+            for item in browser.find_elements(By.XPATH, '//*[@class="readMoreBtn"]'):
+                item.click()
+        except StaleElementReferenceException:
+            for item in browser.find_elements(By.XPATH, '//*[@class="readMoreBtn"]'):
+                item.click()
+        text = browser.find_elements(By.XPATH, '//*[@class="newstext "]')
+        text = text[0].text.replace("\n", "") if text != [] else ""
+        return text
 
 
 class CommentParser(object):

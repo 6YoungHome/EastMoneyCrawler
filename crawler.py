@@ -14,8 +14,6 @@ from parser import PostParser # type: ignore
 from parser import CommentParser # type: ignore
 
 
-
-
 class Crawler:
     def __init__(self, stock_symbol: str):
         self.browser = None
@@ -53,7 +51,6 @@ class Crawler:
             return stock_code+".BJ"
         else:
             raise StockSybolError(stock_code)
-
 
 
 class PostCrawler(Crawler):
@@ -189,8 +186,9 @@ class PostCrawler(Crawler):
             print(f'成功爬取 {self.symbol}股吧{aim_date}帖子，共 {row_count} 条数据，花费 {time_cost/60:.2f} 分钟')
         else:
             print(f'成功爬取 {self.symbol}股吧{aim_date}帖子，共 0 条数据，花费 {time_cost/60:.2f} 分钟')
-class CommentCrawler(Crawler):
 
+
+class CommentCrawler(Crawler):
     def __init__(self, stock_symbol: str):
         super().__init__(stock_symbol)
         self.post_df = None  # dataframe about the post_url and post_id
@@ -230,26 +228,6 @@ class CommentCrawler(Crawler):
                 f"post_eastmoney_guba", 
                 filters=[("symbol", "==", self.format_symbol), ("post_comment_count", "!=", 0)]
             )
-            
-
-    # def find_by_id(self, start_id: int, end_id: int):
-    #     # get comment urls through post_id (used when crawler is paused accidentally) crawl in batches
-    #     """
-    #     :param start_id: 721 整数 ≥
-    #     :param end_id: 2003 整数 ≤
-    #     """
-    #     # postdb = MongoAPI('post_eastmoney_guba', f'post_{self.symbol}')
-    #     # id_query = {
-    #     #     '_id': {'$gte': start_id, '$lte': end_id},
-    #     #     'comment_num': {'$ne': 0}  # avoid fetching urls with no comment
-    #     # }
-    #     # post_info = postdb.find(id_query, {'_id': 1, 'post_url': 1})  # , 'post_date': 1
-    #     # self.post_df = pd.DataFrame(post_info)
-    #     self.post_df = pd.read_parquet(
-    #         f"post_eastmoney_guba", 
-    #         filters=[("symbol", "==", self.format_symbol), ("_id", ">=", start_id), 
-    #                  ("_id", "<=", end_id), ("comment_num", "!=", 0)]
-    #     )
 
     def crawl_comment_info(self):
         url_df = self.post_df['post_url']
@@ -312,6 +290,96 @@ class CommentCrawler(Crawler):
         self.browser.quit()
         print(f'成功爬取 {self.symbol}股吧 {self.current_num} 页评论，花费 {time_cost/60:.2f}分钟')
 
+
+class PostTextCrawler(Crawler):
+    def __init__(self, stock_symbol: str):
+        super().__init__(stock_symbol)
+        self.post_df = None  # dataframe about the post_url and post_id
+
+    def find_by_date(self, start_date=None, end_date=None):
+        # get comment urls through date (used for the first crawl)
+        """
+        :param start_date: '2003-07-21' 字符串格式 ≥
+        :param end_date: '2024-07-21' 字符串格式 ≤
+        """
+        # postdb = MongoAPI('post_eastmoney_guba', f'post_{self.symbol}')
+        # time_query = {
+        #     'post_date': {'$gte': start_date, '$lte': end_date},
+        #     'comment_num': {'$ne': 0}  # avoid fetching urls with no comment
+        # }
+        # post_info = postdb.find(time_query, {'_id': 1, 'post_url': 1})  # , 'post_date': 1
+        # self.post_df = pd.DataFrame(post_info)
+        if start_date and end_date:
+            self.post_df = pd.read_parquet(
+                f"post_eastmoney_guba", 
+                filters=[("symbol", "==", self.format_symbol), ("publish_date", ">=", start_date), 
+                        ("publish_date", "<=", end_date)]
+            )
+        elif start_date:
+            self.post_df = pd.read_parquet(
+                f"post_eastmoney_guba", 
+                filters=[("symbol", "==", self.format_symbol), ("publish_date", ">=", start_date)]
+            )
+        elif end_date:
+            self.post_df = pd.read_parquet(
+                f"post_eastmoney_guba", 
+                filters=[("symbol", "==", self.format_symbol), ("publish_date", "<=", end_date)]
+            )
+        else:
+            self.post_df = pd.read_parquet(
+                f"post_eastmoney_guba", 
+                filters=[("symbol", "==", self.format_symbol)]
+            )
+
+    def crawl_post_text_info(self):
+        url_df = self.post_df['post_url']
+        id_df = self.post_df['post_id']
+        pub_date_df = self.post_df['publish_date']
+        total_num = self.post_df.shape[0]
+
+        self.create_webdriver()
+        parser = PostParser()
+
+        idx = 0
+        dict_list = []
+        while idx < total_num:
+            url = url_df.iloc[idx]
+            pid = id_df.iloc[idx]
+            pdt = pub_date_df.iloc[idx]
+            
+            try:
+                print(url)
+                time.sleep(abs(random.normalvariate(0.03, 0.01)))  # random sleep time
+                try:  # sometimes the website needs to be refreshed (situation comment is loaded unsuccessfully)
+                    self.browser.get(url)  # this function may also get timeout exception
+                    WebDriverWait(self.browser, 0.2, poll_frequency=0.1).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, 'div.reply_item.cl')))
+                except TimeoutException:  # timeout situation
+                    self.browser.refresh()
+                finally:
+                    text = parser.get_post_text(self.browser)
+                    dict_list.append({
+                        "post_text": text, "post_id": pid, 'publish_date': pdt
+                    })
+                    
+                idx += 1
+                print(f'{self.symbol}: 已成功爬取 {idx} 个帖子内容，进度 {idx*100/total_num:.3f}%')
+
+            except TypeError as e:  # some comment is not allowed to display, just skip it
+
+                print(f'{self.symbol}: 第 {idx} 页出现了错误 {e} （{url}）')  # maybe the invisible comments
+                # print(f'应爬取的id范围是 {id_df.iloc[0]} 到 {id_df.iloc[-1]}, id {id_df.iloc[self.current_num - 1]} 出现了错误')
+                self.browser.delete_all_cookies()
+                self.browser.quit()  # restart webdriver if crawler is restricted
+                self.create_webdriver()
+
+        end = time.time()
+        time_cost = end - self.start
+        df = pd.DataFrame(dict_list)
+        df['symbol'] = self.format_symbol
+        df.to_parquet("post_text_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
+        self.browser.quit()
+        print(f'成功爬取 {self.symbol}股吧 {idx} 页内容，花费 {time_cost/60:.2f}分钟')
 
 class StockSybolError(Exception):
     def __init__(self, stock_ymbol):
