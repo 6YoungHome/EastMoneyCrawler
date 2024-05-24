@@ -158,7 +158,12 @@ class PostCrawler(Crawler):
             url = f'http://guba.eastmoney.com/list,{self.symbol},f_{current_page}.html'
             try:
                 self.browser.get(url)
-                dic_list_ = parser.parse_post(browser=self.browser)
+                dic_list_, bar_code = parser.parse_post(browser=self.browser)
+                if bar_code != self.symbol:
+                    with open("./error.txt") as f:
+                        f.write(f"爬取 {self.symbol} 时, 进入了错误的地点 {bar_code}, 疑似IP被封禁!!!\n")
+                        f.writelines([str(i)+"\n" for i in dic_list_])
+                    os._exit(1)
                 for dic in dic_list_:
                     if dic['publish_date'] == aim_date:
                         dic_list.append(dic)
@@ -221,7 +226,12 @@ class PostCrawler(Crawler):
             url = f'http://guba.eastmoney.com/list,{self.symbol},f_{current_page}.html'
             try:
                 self.browser.get(url)
-                dic_list_ = parser.parse_post(browser=self.browser)
+                dic_list_, bar_code = parser.parse_post(browser=self.browser)
+                if bar_code != self.symbol:
+                    with open("./error.txt") as f:
+                        f.write(f"爬取 {self.symbol} 时, 进入了错误的地点 {bar_code}, 疑似IP被封禁!!!\n")
+                        f.writelines([str(i)+"\n" for i in dic_list_])
+                    os._exit(1)
                 for dic in dic_list_:
                     if dic['publish_date'] >= aim_date:
                         dic_list.append(dic)
