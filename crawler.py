@@ -1,18 +1,19 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
 import time
 import random
 import pandas as pd
 import os
 import datetime
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
-from mongodb import MongoAPI
+# from mongodb import MongoAPI
 from parser import PostParser # type: ignore
 from parser import CommentParser # type: ignore
-
+from exceptions import StockSymbolError
 
 class Crawler:
     def __init__(self, stock_symbol: str):
@@ -50,7 +51,7 @@ class Crawler:
         elif stock_code[0] == "8":
             return stock_code+".BJ"
         else:
-            raise StockSybolError(stock_code)
+            raise StockSymbolError(stock_code)
 
 
 class PostCrawler(Crawler):
@@ -129,6 +130,7 @@ class PostCrawler(Crawler):
                 return 
             elif (datetime.datetime.today() - datetime.datetime.strptime(aim_date, "%Y-%m-%d")).days < 0:
                 print(f"目标日期{aim_date}是未来日期")
+                return
         elif date_diff:
             if date_diff > 5:
                 print(f"目标日期太久远！")
@@ -187,6 +189,68 @@ class PostCrawler(Crawler):
         else:
             print(f'成功爬取 {self.symbol}股吧{aim_date}帖子，共 0 条数据，花费 {time_cost/60:.2f} 分钟')
 
+    def crawl_history_post(self, aim_date=None, date_diff=None):
+        """获取过去某一日到现在的post数据
+
+        Args:
+            day_diff (_type_): _description_
+        """
+        if aim_date:
+            if (datetime.datetime.today() - datetime.datetime.strptime(aim_date, "%Y-%m-%d")).days < 0:
+                print(f"目标日期{aim_date}是未来日期")
+                return 
+        elif date_diff:
+            if date_diff < 0:
+                print(f"目标日期是未来日期")
+                return 
+            else:
+                aim_date = (datetime.datetime.today() - datetime.timedelta(days=date_diff)).strftime("%Y-%m-%d")
+        else:
+            aim_date = datetime.datetime.today().strftime("%Y-%m-%d")
+
+        self.create_webdriver()
+        max_page = self.get_page_num() 
+        current_page = 1
+        parser = PostParser()
+
+        dic_list = []
+        aim_date_small_count = 0
+        while current_page <= max_page:  # use 'while' instead of 'for' is crucial for exception handling
+            time.sleep(abs(random.normalvariate(0, 0.01)))  # random sleep time
+            # start = time.time()
+            url = f'http://guba.eastmoney.com/list,{self.symbol},f_{current_page}.html'
+            try:
+                self.browser.get(url)
+                dic_list_ = parser.parse_post(browser=self.browser)
+                for dic in dic_list_:
+                    if dic['publish_date'] >= aim_date:
+                        dic_list.append(dic)
+                        aim_date_small_count = 0
+                    elif dic['publish_date'] < aim_date:
+                        aim_date_small_count += 1
+                    if aim_date_small_count == 10:
+                        current_page = max_page + 100
+                        break
+                current_page += 1
+                
+            except Exception as e:
+                print(f'{self.symbol}: 第 {current_page} 页出现了错误 {e}')
+                time.sleep(0.01)
+                self.browser.refresh()
+                self.browser.delete_all_cookies()
+                self.browser.quit()  # if we don't restart the webdriver, our crawler will be restricted access speed
+                self.create_webdriver()  # restart it again!
+        end = time.time()
+        time_cost = end - self.start
+        row_count = len(dic_list)
+        self.browser.quit()
+        df = pd.DataFrame(dic_list)
+        if not df.empty:
+            df['symbol'] = self.format_symbol
+            df.to_parquet(f"post_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
+            print(f'成功爬取 {self.symbol}股吧{aim_date}到今日的帖子，共 {row_count} 条数据，花费 {time_cost/60:.2f} 分钟')
+        else:
+            print(f'成功爬取 {self.symbol}股吧{aim_date}到今日的帖子，共 0 条数据，花费 {time_cost/60:.2f} 分钟')
 
 class CommentCrawler(Crawler):
     def __init__(self, stock_symbol: str):
@@ -380,13 +444,3 @@ class PostTextCrawler(Crawler):
         df.to_parquet("post_text_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
         self.browser.quit()
         print(f'成功爬取 {self.symbol}股吧 {idx} 页内容，花费 {time_cost/60:.2f}分钟')
-
-class StockSybolError(Exception):
-    def __init__(self, stock_ymbol):
-        self.msg = f"股票代码格式错误，请检查{stock_ymbol}"
-    
-    def __str__(self):
-        return self.msg
-    
-    def __repr__(self):
-        return self.msg
