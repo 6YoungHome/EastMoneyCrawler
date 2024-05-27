@@ -70,9 +70,9 @@ def crawl(method, process_num, thread_num, log_path, stock_pool_path, start_date
             )
     elif method == "comment_download":
         if start_date == "":
-            raise ParameterMissingError("start_date", "历史数据的开始日期")
+            start_date = None
         if end_date == "":
-            raise ParameterMissingError("end_date", "历史数据的结束日期")
+            end_date = None
         log_file_name = f"{log_path}comment_download_log_{datetime.datetime.now().strftime('%Y-%m-%d')}.txt"
         with open(log_file_name, "a") as f:
             f.writelines([f"\n\n【{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} start new project!!!】\n"])
@@ -85,9 +85,9 @@ def crawl(method, process_num, thread_num, log_path, stock_pool_path, start_date
             )
     elif method == "post_text_download":
         if start_date == "":
-            raise ParameterMissingError("start_date", "历史数据的开始日期")
+            start_date = None
         if end_date == "":
-            raise ParameterMissingError("end_date", "历史数据的结束日期")
+            end_date = None
         log_file_name = f"{log_path}post_text_download_log_{datetime.datetime.now().strftime('%Y-%m-%d')}.txt"
         with open(log_file_name, "a") as f:
             f.writelines([f"\n\n【{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} start new project!!!】\n"])
