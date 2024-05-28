@@ -10,10 +10,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
-# from mongodb import MongoAPI
-from parser import PostParser # type: ignore
-from parser import CommentParser # type: ignore
+from browser_parser import PostParser, CommentParser
 from exceptions import StockSymbolError
+from config import *
 
 class Crawler:
     def __init__(self, stock_symbol: str):
@@ -32,8 +31,7 @@ class Crawler:
         options.add_argument('headless')
         self.browser = webdriver.Chrome(options=options)
 
-        current_dir = os.path.dirname(os.path.abspath(__file__))  # hide the features of crawler/selenium
-        js_file_path = os.path.join(current_dir, 'stealth.min.js')
+        js_file_path = os.path.join(RESOURE_PATH+'stealth.min.js')
         with open(js_file_path) as f:
             js = f.read()
         self.browser.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
@@ -116,7 +114,7 @@ class PostCrawler(Crawler):
         df = pd.DataFrame(dic_list)
         df['symbol'] = self.format_symbol
         # df = df.drop_duplicates(subset=['post_id', ''])
-        df.to_parquet(f"post_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
+        df.to_parquet(SAVE_PATH+"post_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
         print(f'成功爬取 {self.symbol}股吧共 {stop_page - page1 + 1} 页帖子，总计 {row_count} 条，花费 {time_cost/60:.2f} 分钟')
         print(f'帖子的时间范围从 {start_date} 到 {end_date}')
     
@@ -191,7 +189,7 @@ class PostCrawler(Crawler):
         df = pd.DataFrame(dic_list)
         if not df.empty:
             df['symbol'] = self.format_symbol
-            df.to_parquet(f"post_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
+            df.to_parquet(SAVE_PATH+"post_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
             print(f'成功爬取 {self.symbol}股吧{aim_date}帖子，共 {row_count} 条数据，花费 {time_cost/60:.2f} 分钟')
         else:
             print(f'成功爬取 {self.symbol}股吧{aim_date}帖子，共 0 条数据，花费 {time_cost/60:.2f} 分钟')
@@ -230,8 +228,8 @@ class PostCrawler(Crawler):
                 self.browser.get(url)
                 dic_list_, bar_code = parser.parse_post(browser=self.browser)
                 if bar_code != self.symbol:
-                    with open("./error.txt") as f:
-                        f.write(f"爬取 {self.symbol} 时, 进入了错误的地点 {bar_code}, 疑似IP被封禁!!!\n")
+                    with open(LOG_PATH+"error.txt", "a") as f:
+                        f.write(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%:%S')} \t 爬取 {self.symbol} 时, 进入了错误的地点 {bar_code}, 疑似IP被封禁!!!\n")
                         f.writelines([str(i)+"\n" for i in dic_list_])
                     os._exit(1)
                 for dic in dic_list_:
@@ -259,7 +257,7 @@ class PostCrawler(Crawler):
         df = pd.DataFrame(dic_list)
         if not df.empty:
             df['symbol'] = self.format_symbol
-            df.to_parquet(f"post_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
+            df.to_parquet(SAVE_PATH+"post_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
             print(f'成功爬取 {self.symbol}股吧{aim_date}到今日的帖子，共 {row_count} 条数据，花费 {time_cost/60:.2f} 分钟')
         else:
             print(f'成功爬取 {self.symbol}股吧{aim_date}到今日的帖子，共 0 条数据，花费 {time_cost/60:.2f} 分钟')
@@ -362,7 +360,7 @@ class CommentCrawler(Crawler):
         time_cost = end - self.start
         df = pd.DataFrame(parser.comment_dict_list)
         df['symbol'] = self.format_symbol
-        df.to_parquet("comment_eastmoney_guba", index=False, partition_cols=["symbol", "reply_date"])
+        df.to_parquet(SAVE_PATH+"comment_eastmoney_guba", index=False, partition_cols=["symbol", "reply_date"])
         self.browser.quit()
         print(f'成功爬取 {self.symbol}股吧 {self.current_num} 页评论，花费 {time_cost/60:.2f}分钟')
 
@@ -453,6 +451,11 @@ class PostTextCrawler(Crawler):
         time_cost = end - self.start
         df = pd.DataFrame(dict_list)
         df['symbol'] = self.format_symbol
-        df.to_parquet("post_text_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
+        df.to_parquet(SAVE_PATH+"post_text_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
         self.browser.quit()
         print(f'成功爬取 {self.symbol}股吧 {idx} 页内容，花费 {time_cost/60:.2f}分钟')
+        
+if __name__ == "__main__":
+    print(RESOURE_PATH+'stealth.min.js')
+    # with open(RESOURE_PATH+'stealth.min.js') as f:
+    #     print(f.readlines())
