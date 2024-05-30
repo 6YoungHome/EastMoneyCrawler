@@ -9,6 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.chrome.service import Service
 
 from py.browser_parser import PostParser, CommentParser
 from py.exceptions import StockSymbolError
@@ -29,7 +30,7 @@ class Crawler:
         options.add_argument('user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, '
                              'like Gecko) Chrome/111.0.0.0 Safari/537.36"')
         options.add_argument('headless')
-        self.browser = webdriver.Chrome(options=options)
+        self.browser = webdriver.Chrome(options=options, service=Service("./resource\chromedriver\win64/125.0.6422.60\chromedriver.exe"))
 
         js_file_path = os.path.join(RESOURE_PATH+'stealth.min.js')
         with open(js_file_path) as f:
