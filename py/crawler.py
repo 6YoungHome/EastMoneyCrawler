@@ -10,9 +10,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
-from browser_parser import PostParser, CommentParser
-from exceptions import StockSymbolError
-from config import *
+from py.browser_parser import PostParser, CommentParser
+from py.exceptions import StockSymbolError
+from py.config import *
 
 class Crawler:
     def __init__(self, stock_symbol: str):

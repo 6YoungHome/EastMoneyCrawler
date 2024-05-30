@@ -5,9 +5,9 @@ import multiprocessing
 from multiprocessing import Lock
 import datetime
 
-from thread_task import *
-from exceptions import ParameterMissingError, InvalidParameterError
-from config import *
+from py.thread_task import *
+from py.exceptions import ParameterMissingError, InvalidParameterError
+from py.config import *
 @click.group()
 def cli():
     pass

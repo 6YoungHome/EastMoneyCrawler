@@ -1,4 +1,4 @@
-from crawler import *
+from py.crawler import *
 import threading
 import multiprocessing
 from multiprocessing import Queue, Lock
