@@ -30,7 +30,7 @@ class Crawler:
         options.add_argument('user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, '
                              'like Gecko) Chrome/111.0.0.0 Safari/537.36"')
         options.add_argument('headless')
-        self.browser = webdriver.Chrome(options=options, service=Service("./resource\chromedriver\win64/125.0.6422.60\chromedriver.exe"))
+        self.browser = webdriver.Chrome(options=options, service=Service(DRIVER_PATH))
 
         js_file_path = os.path.join(RESOURE_PATH+'stealth.min.js')
         with open(js_file_path) as f:
