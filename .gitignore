@@ -7,5 +7,6 @@ myenv/*
 
 .ylyvenv
 ylyvenv
+myenv
 .ipynb
 myenv
