@@ -30,7 +30,7 @@ def post_update_thread(thread_num, stock_code_quene, process_name, lock):
                 return 
             post_crawler = PostCrawler(stock_code)
             post_crawler.crawl_oneday_post(date_diff=1)
-        
+    print(f"{process_name} start!!!")
     semaphore = threading.BoundedSemaphore(thread_num)
     stock_count = 0
     start = time.time()
@@ -67,6 +67,7 @@ def post_download_thread(thread_num, stock_code_quene, process_name, lock):
             post_crawler = PostCrawler(stock_code)
             post_crawler.crawl_by_page(1, 0)
     
+    print(f"{process_name} start!!!")
     semaphore = threading.BoundedSemaphore(thread_num)
     stock_count = 0
     start = time.time()
@@ -103,6 +104,7 @@ def post_get_history_thread(thread_num, stock_code_quene, process_name, start_da
             post_crawler = PostCrawler(stock_code)
             post_crawler.crawl_history_post(start_date)
         
+    print(f"{process_name} start!!!")
     semaphore = threading.BoundedSemaphore(thread_num)
     stock_count = 0
     start = time.time()
@@ -140,6 +142,7 @@ def comment_download_thread(thread_num, stock_code_quene, process_name, start_da
             comment_crawler.find_by_date(start_date=start_date, end_date=end_date)
             comment_crawler.crawl_comment_info()
         
+    print(f"{process_name} start!!!")
     semaphore = threading.BoundedSemaphore(thread_num)
     stock_count = 0
     start = time.time()
@@ -176,6 +179,7 @@ def post_text_download_thread(thread_num, stock_code_quene, process_name, start_
             ptc.find_by_date(start_date=start_date, end_date=end_date)
             ptc.crawl_post_text_info()
     
+    print(f"{process_name} start!!!")
     semaphore = threading.BoundedSemaphore(thread_num)
     stock_count = 0
     start = time.time()

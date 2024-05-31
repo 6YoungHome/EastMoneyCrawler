@@ -3,6 +3,7 @@ comment_eastmoney_guba/*
 post_text_eastmoney_guba/*
 log/*
 result_save/*
+myenv/*
 
 .ylyvenv
 ylyvenv

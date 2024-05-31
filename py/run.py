@@ -23,6 +23,7 @@ def cli():
 # python py/run.py crawl --method=post_get_history --process_num=2 --thread_num=10 --start_date="2024-05-24"
 
 def crawl(method, process_num, thread_num, start_date, end_date):
+    print("process_starting!")
     stock_code_quene = task_split_generate(STOCK_POOL_PATH)
     lock = Lock()
     process_pool = []

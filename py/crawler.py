@@ -30,7 +30,8 @@ class Crawler:
         options.add_argument('user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, '
                              'like Gecko) Chrome/111.0.0.0 Safari/537.36"')
         options.add_argument('headless')
-        self.browser = webdriver.Chrome(options=options, service=Service("./resource\chromedriver\win64/125.0.6422.60\chromedriver.exe"))
+        # self.browser = webdriver.Chrome(options=options, service=Service("./resource\chromedriver\win64/125.0.6422.60\chromedriver.exe"))
+        self.browser = webdriver.Chrome(options=options)
 
         js_file_path = os.path.join(RESOURE_PATH+'stealth.min.js')
         with open(js_file_path) as f:
@@ -218,6 +219,7 @@ class PostCrawler(Crawler):
         max_page = self.get_page_num() 
         current_page = 1
         parser = PostParser()
+        stat_date = datetime.datetime.today()
 
         dic_list = []
         aim_date_small_count = 0
@@ -243,7 +245,21 @@ class PostCrawler(Crawler):
                         current_page = max_page + 100
                         break
                 current_page += 1
-                
+                now_date = datetime.datetime.strptime(dic['publish_date'], "%Y-%m-%d")
+                if (stat_date - now_date).days > 30:
+                    end = time.time()
+                    time_cost = end - self.start
+                    row_count = len(dic_list)
+                    df = pd.DataFrame(dic_list)
+                    if not df.empty:
+                        df['symbol'] = self.format_symbol
+                        df.to_parquet(SAVE_PATH+"post_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
+                        print(f'成功爬取 {self.symbol}股吧{stat_date.strftime("%Y-%m-%d")}到{now_date.strftime("%Y-%m-%d")}的帖子，共 {row_count} 条数据，累计花费 {time_cost/60:.2f} 分钟')
+                    else:
+                        print(f'成功爬取 {self.symbol}股吧{stat_date.strftime("%Y-%m-%d")}到{now_date.strftime("%Y-%m-%d")}的帖子，共 0 条数据，累计花费 {time_cost/60:.2f} 分钟')
+                    stat_date = now_date
+                    dic_list = []
+                    
             except Exception as e:
                 print(f'{self.symbol}: 第 {current_page} 页出现了错误 {e}')
                 time.sleep(0.01)
@@ -259,9 +275,9 @@ class PostCrawler(Crawler):
         if not df.empty:
             df['symbol'] = self.format_symbol
             df.to_parquet(SAVE_PATH+"post_eastmoney_guba", index=False, partition_cols=["symbol", "publish_date"])
-            print(f'成功爬取 {self.symbol}股吧{aim_date}到今日的帖子，共 {row_count} 条数据，花费 {time_cost/60:.2f} 分钟')
+            print(f'成功爬取 {self.symbol}股吧{aim_date}到今日的帖子，共 {row_count} 条数据，累计花费 {time_cost/60:.2f} 分钟')
         else:
-            print(f'成功爬取 {self.symbol}股吧{aim_date}到今日的帖子，共 0 条数据，花费 {time_cost/60:.2f} 分钟')
+            print(f'成功爬取 {self.symbol}股吧{aim_date}到今日的帖子，共 0 条数据，累计花费 {time_cost/60:.2f} 分钟')
 
 class CommentCrawler(Crawler):
     def __init__(self, stock_symbol: str):

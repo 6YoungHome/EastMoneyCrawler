@@ -6,8 +6,10 @@ cfg = \
     "result_save_path": "result_save/",
     "log_path": "log/",
     "resource_path": "resource/",
-    "stock_pool_path": "resource/stock_pool50.txt",
-    "driver_path": "resource\chromedriver\win64/125.0.6422.60\chromedriver.exe"
+    "stock_pool_path": "resource/stock_pool.txt",
+    # "stock_pool_path": "resource/stock_pool.txt",
+    # "driver_path": "resource\chromedriver\win64/125.0.6422.60\chromedriver.exe"
+    "driver_path": "resource\chromedriver\win64/125.0.6422.60\chromedriver"
 }
     
 SAVE_PATH = cfg["result_save_path"]
