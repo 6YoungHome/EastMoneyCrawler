@@ -3,10 +3,18 @@ comment_eastmoney_guba/*
 post_text_eastmoney_guba/*
 log/*
 result_save/*
-myenv/*
 
 .ylyvenv
 ylyvenv
 myenv
+.ipynbpost_eastmoney_guba/*
+comment_eastmoney_guba/*
+post_text_eastmoney_guba/*
+log/*
+result_save/*
+myenv/*
+
+.ylyvenv
+ylyvenv
 .ipynb
 myenv
